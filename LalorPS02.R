@@ -31,6 +31,7 @@ violationstats <- function(data, stats="both") { #default to calculate both
   for (i in 1:length(output$data)) { 
     output$data[[i]] <- output$data[[i]]/length(data)
   }
+  
   #Make sure no zeros? IS THIS NEEDED?
   
   #Calculate stats
@@ -40,7 +41,7 @@ violationstats <- function(data, stats="both") { #default to calculate both
       vals[i] <- abs(output$data[[i]] - log10( 1+ (1/as.numeric(names(output$data[i]))) ))
     }
     output$leemis <- max(vals) #Select max
-  }
+  } # end L if
 
   if (stats %in% c("both","chogaines")) { #If Cho-Gaines or both
     val <- 0
@@ -48,18 +49,58 @@ violationstats <- function(data, stats="both") { #default to calculate both
       val <- val + (output$data[[i]] - log10(1+(1/as.numeric(names(output$data[i])))))^2 #distance is sum
     }
     output$chogaines <- sqrt(val) #Cho-Gaines is squareroot of sum
-  } 
+  } #end CG if
   return(output)
 }
 
-#Initial test
-datamatrix<- matrix(seq(1,99,by=3), ncol=3) #Test matrix
-datavector <- seq(1,33,3)
-(outmatrix <- violationstats(datamatrix))
-(outvec <- violationstats(datavector, stats="leemis"))   
+#Initial test - outputs ok
+#datamatrix<- matrix(seq(1,99,by=3), ncol=3) #Test matrix
+#datavector <- seq(1,33,3)
+#(outmatrix <- violationstats(datamatrix))
+#(outvec <- violationstats(datavector, stats="leemis"))   
+
 ##2) Critical Values
+names(outmatrix)
+violoutput <- outmatrix #Test, has both
+print.benfords <- function(violoutput) {
+  #Reject Null of no fraud if reach critical values:
+  #Mcrit <- list("0.10" = 0.851,"0.05" = 0.967,"0.01" = 1.212) #Listed Leemis crits
+  #Dcrit <- list("0.10" = 1.212,"0.05" = 1.330,"0.01" = 1.569) #Listed CG crits
+  cat("--------------------------------------------------\n" )
+  if ("leemis" %in% names(violoutput)) { #Print Leemis' value
+    stars <- ""
+    if (violoutput$leemis[1] > 1.212 ) { #if above .01 crit
+      stars <-"***"
+    } else if (violoutput$leemis[1] > 0.967 ) { # if above .05 crit
+      stars <-"**"
+    } else if (violoutput$leemis[1] > 0.851 ) { # if above .10 crit
+      stars <-"*"
+    }
+    #print line
+    cat("Leemis' m:", signif(violoutput$leemis[1], digits=4),stars,"\n") #3 sig digits given crits
+  } #end Leemis if
+  
+  if ("chogaines" %in% names(violoutput)) { #Print Cho-Gaines' value
+    stars <- ""
+    if (violoutput$chogaines[1] > 1.569 ) { #if above .01 crit
+      stars <-"***"
+    } else if (violoutput$chogaines[1] > 1.330 ) { # if above .05 crit
+      stars <-"**"
+    } else if (violoutput$chogaines[1] > 1.212 ) { # if above .10 crit
+      stars <-"*"
+    }
+    #print line
+    cat("Cho-Gaines' d:", signif(violoutput$chogaines[1], digits=4),stars,"\n") #3 sig digits given crits  
+  } #end Cho-Gaines if
+  
+  # Print legend
+  cat("Sig code: \"*\" = .10, \"**\" = .05, \"***\" = .01\n" )
+  cat("--------------------------------------------------\n" )  
+} #end function
 
-
+#test - output ok
+#print.benfords(violoutput) #both
+#print.benfords(outvec) #just leemis
 
 ##3) Testing
 

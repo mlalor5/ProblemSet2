@@ -38,7 +38,7 @@ violationstats <- function(data, stats="both") { #default to calculate both
     for (i in 1:length(output$data)) { #all potential Leemis stats
       vals[i] <- abs(output$data[[i]] - log10( 1+ (1/as.numeric(names(output$data[i]))) ))
     }
-    output$leemis <- max(vals)*sqrt(length(data)) #Select max * sqrt(n) per Murrow
+    output$leemis <- max(vals) #sqrt(length(data)) ###ERROR CREATED: OMMITTING THE sqrt(n)
   } # end L if
 
   if (stats %in% c("both","chogaines")) { #If Cho-Gaines or both
@@ -159,6 +159,8 @@ benfordsample <- rbenf(25000)
 #sample NOT satisfying Benford's law 
 notmetsample <- c(1,2,3,4,rep(5,5),6,7, rep(9,3^9)) #most values being high int opposite of Benford
 
+##PART TWO: UNIQUE BRANCHES##
+#VERSION WITH BENEFORD DATA
 #Compare my function to results
 results <- violationstats(benfordsample)
 
@@ -168,14 +170,14 @@ firstdig <- signifd(benfordsample) #first digits function
 digitfrequency <- table(sort(firstdig)) #frequencies
 truetestdist <- (digitfrequency/length(firstdig)) #change to proportion
 #truetestdist == results$data #TRUE
-#Stat Tests
 
+#Stat Tests
 #Calculate d: sqrt(n)* sqrt (sum( observed frequencies - benford predicted)^2 )
 val <- 0
 for (i in 1:length(truetestdist)) { #all potential Leemis stats - do for incase some digits missing
   val<- val + (truetestdist[[i]] -pbenf(digits=1)[[as.numeric(names(truetestdist[i]))]])^2
 }
-truecg <- (sqrt(length(notmetsample))*sqrt(val)) 
+truecg <- (sqrt(length(benfordsample))*sqrt(val)) 
 #same as edist.benftest in BenfordTests package
 #results$chogaines == truecg #TRUE
 
@@ -184,26 +186,23 @@ vals <- rep(0, length(truetestdist))
 for (i in 1:length(truetestdist)) { #all potential Leemis stats - do for incase some digits missing
   vals[i] <- abs(truetestdist[[i]] -pbenf(digits=1)[[as.numeric(names(truetestdist[i]))]])
 }
-truelem <- max(vals)*sqrt(length(notmetsample)) 
+truelem <- max(vals)*sqrt(length(benfordsample)) 
 }  
 #same as edist.benftest in BenfordTests package
 #results$leemis == truelem #TRUE
 
-#use your functions above to compare to the “truth” for the digit distributions and two test statistics
-
-#Test Function: Beneford data
-resultsmet <- test.funct(benfordsample, truetestdist, truelem, truecg)
-#resultsmet #TRUE when proper data for variables truetestdist, truelem, truecg
-
-#Test Function: Non-Benford data
-resultsmet <- test.funct(notmetsample, truetestdist, truelem, truecg)
-#resultsmet #TRUE when proper data for variables truetestdist, truelem, truecg
-
-
-
-
+###WITH ALTERED CODE TO CAUSE ERRORS####
 
 ##3) Part 2 For each way that the function can fail this test, create a 
 #branch where you edit the code in some way to make the code fail to pass the unit testing
 #MESS UP CODE
+
+#Test Function: Beneford data
+(resultsmet <- test.funct(benfordsample, truetestdist, truelem, truecg))
+#TRUE when code is good, here show Stats Test Failed
+
+
+
+
+
 

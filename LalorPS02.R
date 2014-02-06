@@ -10,7 +10,7 @@
 #input: (i) a matrix or vector of election returns and options(s) for m,d, both
 # output: list containing the results, including full digit distribution
 
-#Calc Function
+##Calc Function
 violationstats <- function(data, stats="both") { #default to calculate both
   if (!stats %in% c("both","leemis","chogaines")) { #Check that option is correct
     print("Error: incorrect stats option") 
@@ -32,23 +32,21 @@ violationstats <- function(data, stats="both") { #default to calculate both
     output$data[[i]] <- output$data[[i]]/length(data)
   }
   
-  #Make sure no zeros? IS THIS NEEDED?
-  
   #Calculate stats
   if (stats %in% c("both","leemis")) { #If Leemis or both
     vals <- rep(0, length(output$data))
     for (i in 1:length(output$data)) { #all potential Leemis stats
       vals[i] <- abs(output$data[[i]] - log10( 1+ (1/as.numeric(names(output$data[i]))) ))
     }
-    output$leemis <- max(vals) #Select max
+    output$leemis <- max(vals)*sqrt(length(data)) #Select max * sqrt(n) per Murrow
   } # end L if
 
   if (stats %in% c("both","chogaines")) { #If Cho-Gaines or both
     val <- 0
-    for (i in 1:length(output$data)) {
+    for (i in 1:length(output$data)) { #sum square of (actual proportion - benford predicted) 
       val <- val + (output$data[[i]] - log10(1+(1/as.numeric(names(output$data[i])))))^2 #distance is sum
     }
-    output$chogaines <- sqrt(val) #Cho-Gaines is squareroot of sum
+    output$chogaines <- sqrt(length(data))*sqrt(val) #Cho-Gaines is squareroot of sum * sqrt(n)
   } #end CG if
   return(output)
 }
@@ -58,14 +56,20 @@ violationstats <- function(data, stats="both") { #default to calculate both
 #datavector <- seq(1,33,3)
 #(outmatrix <- violationstats(datamatrix))
 #(outvec <- violationstats(datavector, stats="leemis"))   
+outbaddist <- violationstats(notmetsample) #Run for non-Benford data
+
+
 
 ##2) Critical Values
-names(outmatrix)
-violoutput <- outmatrix #Test, has both
+#names(outmatrix)
+#violoutput <- outmatrix #Test, has both
+
+#Mcrit <- list("0.10" = 0.851,"0.05" = 0.967,"0.01" = 1.212) #Listed Leemis crits
+#Dcrit <- list("0.10" = 1.212,"0.05" = 1.330,"0.01" = 1.569) #Listed CG crits
+
+## PRINT FUNCTION
 print.benfords <- function(violoutput) {
   #Reject Null of no fraud if reach critical values:
-  #Mcrit <- list("0.10" = 0.851,"0.05" = 0.967,"0.01" = 1.212) #Listed Leemis crits
-  #Dcrit <- list("0.10" = 1.212,"0.05" = 1.330,"0.01" = 1.569) #Listed CG crits
   cat("--------------------------------------------------\n" )
   if ("leemis" %in% names(violoutput)) { #Print Leemis' value
     stars <- ""
@@ -101,11 +105,105 @@ print.benfords <- function(violoutput) {
 #test - output ok
 #print.benfords(violoutput) #both
 #print.benfords(outvec) #just leemis
+#print.benfords(outbaddist) #non-Benford dataset
+
 
 ##3) Testing
 
-##3-1) Develop a function that will unit test your function
+#function to unit test function
 
-##3-2) For each way that the function can fail this test, create a branch where you edit the code in
-#some way to make the code fail to pass the unit testing
+##FUNCTION##
+#truetestdist is true Beneford distribution for dataset inputdata
+#truelem  is true Leemis' m for dataset inputdata
+#truecg is true Cho-Gaines' d for dataset inputdata
+test.funct <- function(inputdata, truetestdist, truelem, truecg) { #will test both stats values
+  Pass <- "TRUE"
+  testout <- violationstats(inputdata)
+  
+  #Compare distributions
+  #Make sure lengths are the same
+  if (length(testout$data) != length(truetestdist)) {
+    print("Distribution Unit Test Failed")
+    Pass <- "FALSE"
+  }
+  #Compare each proportion, don't check names so input doesn't have to be named list
+  for(i in 1:length(testout$data)) {
+    if (signif(testout$data[[i]], digits = 3) != signif(truetestdist[[i]], digits = 3)) {
+      print("Distribution Unit Test Failed")
+     Pass <- "FALSE"
+    }
+  }
+  
+  #Compare Leemis Stat
+  if (signif(testout$leemis, digits = 3) != signif(truelem, digits = 3)) {
+    print("Leemis' Unit Test Failed")
+    Pass <- "FALSE"
+  }
+  
+  #Compare Cho-Gaines Stat
+  if (signif(testout$chogaines, digits = 3) != signif(truecg, digits = 3)) {
+    print("Cho-Gaines' Unit Test Failed")
+    Pass <- "FALSE"
+  }
+  return(Pass)
+} 
+  
+
+##TESTING##
+
+#data where Benford's law is met
+library(BenfordTests)
+set.seed(25)
+#random sample satisfying Benford's law
+benfordsample <- rbenf(25000)
+#sample NOT satisfying Benford's law 
+notmetsample <- c(1,2,3,4,rep(5,5),6,7, rep(9,3^9)) #most values being high int opposite of Benford
+
+#Compare my function to results
+results <- violationstats(benfordsample)
+
+#From Beneford Package
+firstdig <- signifd(benfordsample) #first digits function
+#Distribution calculation 
+digitfrequency <- table(sort(firstdig)) #frequencies
+truetestdist <- (digitfrequency/length(firstdig)) #change to proportion
+#truetestdist == results$data #TRUE
+#Stat Tests
+
+#Calculate d: sqrt(n)* sqrt (sum( observed frequencies - benford predicted)^2 )
+val <- 0
+for (i in 1:length(truetestdist)) { #all potential Leemis stats - do for incase some digits missing
+  val<- val + (truetestdist[[i]] -pbenf(digits=1)[[as.numeric(names(truetestdist[i]))]])^2
+}
+truecg <- (sqrt(length(notmetsample))*sqrt(val)) 
+#same as edist.benftest in BenfordTests package
+#results$chogaines == truecg #TRUE
+
+#Calcualte m: sqrt(n) Max abs(observed frequencies - benford predicted)
+vals <- rep(0, length(truetestdist))
+for (i in 1:length(truetestdist)) { #all potential Leemis stats - do for incase some digits missing
+  vals[i] <- abs(truetestdist[[i]] -pbenf(digits=1)[[as.numeric(names(truetestdist[i]))]])
+}
+truelem <- max(vals)*sqrt(length(notmetsample)) 
+}  
+#same as edist.benftest in BenfordTests package
+#results$leemis == truelem #TRUE
+
+#use your functions above to compare to the “truth” for the digit distributions and two test statistics
+
+#Test Function: Beneford data
+resultsmet <- test.funct(benfordsample, truetestdist, truelem, truecg)
+#resultsmet #TRUE when proper data for variables truetestdist, truelem, truecg
+
+#Test Function: Non-Benford data
+resultsmet <- test.funct(notmetsample, truetestdist, truelem, truecg)
+#resultsmet #TRUE when proper data for variables truetestdist, truelem, truecg
+
+
+
+
+
+##3) Part 2 For each way that the function can fail this test, create a 
+#branch where you edit the code in some way to make the code fail to pass the unit testing
+#MESS UP CODE
 
